@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Alexander's fork: bring in the upstream author's new versions.
 # Fetches yusuf8834/bb-sidebar, rebases branch alexander/main on it, runs the
-# full check, then reinstalls this checkout into BB. Stops on any conflict or
-# red check and leaves the installed plugin untouched.
+# full check, then installs a frozen release of the new commit through Git-Local's
+# release-plugin.sh (~/.bb/plugin-releases/bb-sidebar/<sha>; never this live
+# checkout). Stops on any conflict or red check and leaves the installed plugin untouched.
 #   --dry-run  rebase and check only; do not reinstall.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -22,6 +23,7 @@ if ! npm run check; then
   exit 1
 fi
 [ "${1:-}" = "--dry-run" ] && { echo "dry run ok: $(git log --oneline -1 origin/main)"; exit 0; }
-bb plugin install "$PWD" --yes
+release=${BB_RELEASE_SCRIPT:-$HOME/Documents/Git-Local/00-core/bb-plugins/release-plugin.sh}
+"$release" --probe 'bb plugin list | grep -A4 "^bb-sidebar@" | grep -q "schedule auto-settle"' "$PWD" HEAD
 git push --force-with-lease fork "$branch"
 echo "installed: $(git log --oneline -1)"

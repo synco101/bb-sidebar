@@ -25,5 +25,5 @@ Branch `alexander/main` = upstream `origin/main` (yusuf8834/bb-sidebar) plus:
 | Per-project models gear | `src/ProjectModelsDialog.test.tsx` |
 
 Installed into BB from this checkout (`path:` source), so it no longer auto-updates.
-To take upstream's new versions: `scripts/update-from-upstream.sh` (`--dry-run` to only rebase and test).
+To take upstream's new versions: `scripts/update-from-upstream.sh` (`--dry-run` to only rebase and test). It installs a frozen release (`~/.bb/plugin-releases/bb-sidebar/<sha>`) through Git-Local `00-core/bb-plugins/release-plugin.sh`, never this checkout. Roll back with `release-plugin.sh --rollback bb-sidebar <old-sha>`.
 Back to upstream: `bb plugin install git:https://github.com/yusuf8834/bb-sidebar.git@semver:^0.2.0 --yes`.
