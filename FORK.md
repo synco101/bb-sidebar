@@ -22,8 +22,14 @@ Branch `alexander/main` = upstream `origin/main` (yusuf8834/bb-sidebar) plus:
 | Archive: hover Archive button on Settled rows | `src/ThreadInbox.test.tsx` ("archives one Settled thread from its row") |
 | Archive: Settings > Archiving (all settled, per project, confirmation list) | `src/ThreadInbox.test.tsx` ("archives every Settled thread after one confirmation") |
 | Project colours and Archived shelf on by default | `src/server.test.ts` ("stores the grouped sidebar settings through RPC", "persists color display mode ...") |
-| Per-project models gear | `src/ProjectModelsDialog.test.tsx` |
+| Per-project models gear and Auto/Manual dialog (GitLocal #193) | `src/ProjectModelsDialog.test.tsx`: round-trip, reset/equal override, bulk Auto, chip editing, preserved inherit-session, plugin warnings |
 
 Installed into BB from this checkout (`path:` source), so it no longer auto-updates.
 To take upstream's new versions: `scripts/update-from-upstream.sh` (`--dry-run` to only rebase and test). It installs a frozen release (`~/.bb/plugin-releases/bb-sidebar/<sha>`) through Git-Local `00-core/bb-plugins/release-plugin.sh`, never this checkout. Roll back with `release-plugin.sh --rollback bb-sidebar <old-sha>`.
 Back to upstream: `bb plugin install git:https://github.com/yusuf8834/bb-sidebar.git@semver:^0.2.0 --yes`.
+
+## Prepared single authority (2026-10-12)
+
+The Models dialog uses provider display names/reasoning catalogs and model-routing getWarnings/getPolicyRules. Auto opens pools while mandatory eligibility guards apply. Final-chip removal is an unsaved local empty draft, because the unchanged store schema requires nonempty pools; add a model or choose Auto before Done. Existing gear/context-menu entry points and Archive guards remain.
+
+Do not install stale `feat/model-routing`, `feat/archive-shelf` or the retired custom BB build branches. Do not delete them. This contribution is prepared on `feat/single-authority-models`; installation requires the owner step-9 batch and a matching frozen release, never a working tree.
