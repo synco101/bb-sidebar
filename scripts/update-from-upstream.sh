@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Alexander's fork: bring in the upstream author's new versions.
-# Fetches yusuf8834/bb-sidebar, rebases branch alexander/models on it, runs the
+# Fetches yusuf8834/bb-sidebar, rebases branch alexander/main on it, runs the
 # full check, then reinstalls this checkout into BB. Stops on any conflict or
 # red check and leaves the installed plugin untouched.
 #   --dry-run  rebase and check only; do not reinstall.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-branch=alexander/models
+branch=alexander/main
 [ "$(git branch --show-current)" = "$branch" ] || { echo "switch to $branch first" >&2; exit 1; }
 [ -z "$(git status --porcelain)" ] || { echo "working tree not clean" >&2; exit 1; }
 before=$(git rev-parse HEAD)

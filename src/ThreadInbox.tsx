@@ -34,6 +34,7 @@ import { ProjectColorsProvider, useProjectColor } from "./ProjectColors";
 import { ThreadCard, type ThreadReorderControls } from "./ThreadCard";
 import { SlimRow } from "./SlimRow";
 import { CleanSettledDialog } from "./CleanSettledDialog";
+import { ArchivedThreadList } from "./ArchiveShelf";
 import { SearchResults } from "./SearchResults";
 import { childThreadsByParent, collapsedChildThreads } from "./ChildThreadList";
 import {
@@ -262,6 +263,7 @@ interface ShelfExpansionState {
   parked: boolean;
   snoozed: boolean;
   settled: boolean;
+  archived: boolean;
 }
 
 const DEFAULT_SHELF_EXPANSION: ShelfExpansionState = {
@@ -272,6 +274,7 @@ const DEFAULT_SHELF_EXPANSION: ShelfExpansionState = {
   parked: false,
   snoozed: false,
   settled: false,
+  archived: false,
 };
 
 function readShelfExpansion(): ShelfExpansionState {
@@ -289,6 +292,7 @@ function readShelfExpansion(): ShelfExpansionState {
       parked: parsed.parked === true,
       snoozed: parsed.snoozed === true,
       settled: parsed.settled === true,
+      archived: parsed.archived === true,
     };
   } catch {
     return DEFAULT_SHELF_EXPANSION;
@@ -1773,6 +1777,7 @@ export function ThreadInbox({
                       }))
                     }
                     shelf="settled"
+                    showArchiveButton={sidebarSettings?.archivedShelfEnabled === true}
                     visibleThreads={visibleSettled}
                     activeThreadId={activeThreadId}
                     lifecycle={lifecycle}
@@ -1784,6 +1789,30 @@ export function ThreadInbox({
                       setSettledLimit((limit) => limit + SETTLED_PAGE_SIZE)
                     }
                   />
+                  {sidebarSettings?.archivedShelfEnabled ? <CollapsibleShelf
+                    label="Archived"
+                    icon="Archive"
+                    count={0}
+                    hideCount
+                    expanded={expandedShelves.archived}
+                    onToggle={() =>
+                      setExpandedShelves((current) => ({
+                        ...current,
+                        archived: !current.archived,
+                      }))
+                    }
+                  >
+                    {expandedShelves.archived ? (
+                      <ArchivedThreadList
+                        scope={scope === ALL_PROJECTS ? null : scope}
+                        projectNameById={projectNameById}
+                        projectIconRevision={projectIconRevision}
+                        activeThreadId={activeThreadId}
+                        now={now}
+                        onNavigate={onNavigate}
+                      />
+                    ) : null}
+                  </CollapsibleShelf> : null}
                 </>
               }
             />
@@ -1996,6 +2025,7 @@ function CompactShelf({
   expanded,
   onToggle,
   shelf,
+  showArchiveButton = false,
   visibleThreads,
   activeThreadId,
   lifecycle,
@@ -2015,6 +2045,7 @@ function CompactShelf({
   expanded: boolean;
   onToggle: () => void;
   shelf: "parked" | "snoozed" | "settled";
+  showArchiveButton?: boolean;
   visibleThreads: readonly PluginSidebarThread[];
   activeThreadId: string | null;
   lifecycle: LifecycleApi;
@@ -2055,6 +2086,7 @@ function CompactShelf({
             )}
             isActive={thread.id === activeThreadId}
             shelf={shelf}
+            showArchiveButton={showArchiveButton}
             parkedAt={lifecycle.parkedAtFor(thread)}
             onPark={() => onPark(thread)}
             onSettle={() => onSettle(thread)}
@@ -2138,6 +2170,7 @@ function CollapsibleShelf({
   expanded,
   onToggle,
   action,
+  hideCount = false,
   children,
   hidden = false,
 }: {
@@ -2148,6 +2181,7 @@ function CollapsibleShelf({
   expanded: boolean;
   onToggle: () => void;
   action?: React.ReactNode;
+  hideCount?: boolean;
   children: React.ReactNode;
   hidden?: boolean;
 }) {
@@ -2168,7 +2202,7 @@ function CollapsibleShelf({
               className={cn("size-3.5 shrink-0", animateIcon && "animate-spin motion-reduce:animate-none")}
               aria-hidden
             />
-            {expanded ? label : `${label} (${count})`}
+            {expanded || hideCount ? label : `${label} (${count})`}
           </span>
           <span className="h-px flex-1 bg-sidebar-border" />
           {action ? (

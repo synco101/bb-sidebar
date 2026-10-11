@@ -108,7 +108,6 @@ const migrations = [
      ADD COLUMN dock_shelves INTEGER NOT NULL DEFAULT 0`,
   AUTO_TITLE_RECOVERY_MIGRATION,
   `ALTER TABLE sidebar_settings ADD COLUMN project_colors_enabled INTEGER NOT NULL DEFAULT 0`,
-  // Retained to preserve migration indices for installations of the archive preview.
   `ALTER TABLE sidebar_settings ADD COLUMN archived_shelf_enabled INTEGER NOT NULL DEFAULT 0`,
   `CREATE TABLE IF NOT EXISTS project_colors (
      project_id TEXT PRIMARY KEY,
@@ -151,6 +150,7 @@ interface SidebarSettingsDbRow {
   dock_shelves: number;
   project_colors_enabled: number;
   project_color_display: string;
+  archived_shelf_enabled: number;
 }
 
 const threadIdSchema = z.object({ threadId: z.string().trim().min(1) });
@@ -234,6 +234,7 @@ const sidebarSettingsSchema = z
     dockShelves: z.boolean(),
     projectColorsEnabled: z.boolean(),
     projectColorDisplay: z.enum(PROJECT_COLOR_DISPLAYS),
+    archivedShelfEnabled: z.boolean(),
   })
   .strict();
 const uploadFilenameSchema = z
@@ -295,6 +296,17 @@ export const bbSidebarRpcContract = defineRpcContract({
   },
   deleteThread: {
     input: threadIdSchema.extend({ childThreadsConfirmed: z.boolean() }).strict(),
+    output: z.object({ ok: z.boolean() }),
+  },
+  archiveThreads: {
+    input: z.object({ threadIds: threadIdsSchema }).strict(),
+    output: z.object({
+      archived: z.number(),
+      failures: z.array(z.object({ threadId: z.string(), error: z.string() })),
+    }),
+  },
+  unarchiveThread: {
+    input: threadIdSchema.strict(),
     output: z.object({ ok: z.boolean() }),
   },
   regenerateTitle: {
@@ -573,7 +585,7 @@ export default async function plugin(bb: BbPluginApi) {
                 auto_settle_after_days, auto_settle_on_merge,
                 child_sort_field, child_sort_direction, child_icon_style,
                 compact_working_threads, working_shelf, dock_shelves,
-                project_colors_enabled, project_color_display
+                project_colors_enabled, archived_shelf_enabled, project_color_display
            FROM sidebar_settings
           WHERE id = 1`,
       )
@@ -598,6 +610,7 @@ export default async function plugin(bb: BbPluginApi) {
           dockShelves: row.dock_shelves === 1,
           projectColorsEnabled: row.project_colors_enabled === 1,
           projectColorDisplay: projectColorDisplayOf(row.project_color_display),
+          archivedShelfEnabled: row.archived_shelf_enabled === 1,
         }
       : { ...DEFAULT_SIDEBAR_SETTINGS };
   };
@@ -610,8 +623,8 @@ export default async function plugin(bb: BbPluginApi) {
          auto_settle_after_days, auto_settle_on_merge,
          child_sort_field, child_sort_direction, child_icon_style,
          compact_working_threads, working_shelf, dock_shelves,
-         project_colors_enabled, project_color_display
-       ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         project_colors_enabled, archived_shelf_enabled, project_color_display
+       ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          snooze_presets = excluded.snooze_presets,
          inactive_threads_enabled = excluded.inactive_threads_enabled,
@@ -628,6 +641,7 @@ export default async function plugin(bb: BbPluginApi) {
          working_shelf = excluded.working_shelf,
          dock_shelves = excluded.dock_shelves,
          project_colors_enabled = excluded.project_colors_enabled,
+         archived_shelf_enabled = excluded.archived_shelf_enabled,
          project_color_display = excluded.project_color_display`,
     ).run(
       values.snoozePresets,
@@ -644,6 +658,7 @@ export default async function plugin(bb: BbPluginApi) {
       values.workingShelf ? 1 : 0,
       values.dockShelves ? 1 : 0,
       values.projectColorsEnabled ? 1 : 0,
+      values.archivedShelfEnabled ? 1 : 0,
       values.projectColorDisplay,
     );
   };
@@ -703,6 +718,7 @@ export default async function plugin(bb: BbPluginApi) {
         dockShelves: DEFAULT_SIDEBAR_SETTINGS.dockShelves,
         projectColorsEnabled: false,
         projectColorDisplay: DEFAULT_SIDEBAR_SETTINGS.projectColorDisplay,
+        archivedShelfEnabled: false,
       });
       if (hasLegacyValues && migrated.success) {
         writeSidebarSettings(migrated.data);
@@ -1773,6 +1789,21 @@ export default async function plugin(bb: BbPluginApi) {
       // so bb's generic one is skipped. Deletion is recursive; bb refuses it
       // unless the caller confirmed the children too.
       await bb.sdk.threads.delete({ threadId, childThreadsConfirmed });
+      return { ok: true };
+    },
+    async archiveThreads({ threadIds }) {
+      // Archive Settled in one go. The sidebar shows its own confirmation, so
+      // bb's per-thread dialog is skipped. Archive takes children with it but
+      // leaves an idle agent session loaded, hence the stop (see
+      // releaseRuntimes); a failed stop only misses a reclaim.
+      const result = await runThreadTasks(threadIds, async (threadId) => {
+        await bb.sdk.threads.archive({ threadId });
+        await bb.sdk.threads.stop({ threadId }).catch(() => undefined);
+      });
+      return { archived: result.succeededThreadIds.length, failures: result.failures };
+    },
+    async unarchiveThread({ threadId }) {
+      await bb.sdk.threads.unarchive({ threadId });
       return { ok: true };
     },
     regenerateTitle: ({ threadId }) => regenerateTitle(threadId),

@@ -203,7 +203,7 @@ async function loadPlugin(
 }
 
 describe("lifecycle RPC", () => {
-  it("loads archive-preview storage without resetting shelves or project appearance", async () => {
+  it("keeps the Archived shelf setting and shelves across reloads (fork)", async () => {
     const { bb, harness } = createFakePluginHost({ pluginId: "bb-sidebar" });
     await plugin(bb);
     disposers.push(() => harness.lifecycle.dispose());
@@ -222,8 +222,7 @@ describe("lifecycle RPC", () => {
 
     const restored = (await harness.lifecycle.reload(plugin)).harness;
     disposers.push(() => restored.lifecycle.dispose());
-    await expect(restored.behavior.callRpc("getSidebarSettings", {})).resolves.toEqual(saved);
-    expect(saved).not.toHaveProperty("archivedShelfEnabled");
+    await expect(restored.behavior.callRpc("getSidebarSettings", {})).resolves.toEqual({ ...(saved as Record<string, unknown>), archivedShelfEnabled: true });
     await expect(restored.behavior.callRpc("listLifecycle", {})).resolves.toEqual(before);
     await expect(restored.behavior.callRpc("getProjectColors", {})).resolves.toEqual({ colors: { proj_1: "#668899" } });
     expect(restored.inspection.sdk.callsTo("threads.archive")).toHaveLength(0);
@@ -565,8 +564,9 @@ describe("lifecycle RPC", () => {
       compactWorkingThreads: false,
       workingShelf: false,
       dockShelves: false,
-      projectColorsEnabled: false,
+      projectColorsEnabled: true,
       projectColorDisplay: "all",
+      archivedShelfEnabled: true,
     });
     await expect(
       harness.behavior.callRpc("updateSidebarSettings", {
@@ -602,6 +602,7 @@ describe("lifecycle RPC", () => {
       dockShelves: true,
       projectColorsEnabled: true,
       projectColorDisplay: "grouped",
+      archivedShelfEnabled: true,
     });
     // A client that predates the setting leaves it out and must not reset it.
     await expect(
@@ -636,7 +637,7 @@ describe("lifecycle RPC", () => {
     disposers.push(() => reloaded.harness.lifecycle.dispose());
     await expect(reloaded.harness.behavior.callRpc("getSidebarSettings", {})).resolves.toMatchObject({
       projectColorDisplay: "full",
-      projectColorsEnabled: false,
+      projectColorsEnabled: true,
     });
   });
 
@@ -714,6 +715,7 @@ describe("lifecycle RPC", () => {
       dockShelves: false,
       projectColorsEnabled: false,
       projectColorDisplay: "all",
+      archivedShelfEnabled: false,
     });
   });
 
@@ -2800,6 +2802,7 @@ describe("release lifecycle safety", () => {
     const h = await host([]);
     await h.behavior.callRpc("updateSidebarSettings", { workingShelf: true });
     expect(await h.behavior.callRpc("updateSidebarSettings", { childSortDirection: "descending" })).toMatchObject({ workingShelf: true, childSortDirection: "descending" });
-    await expect(h.behavior.callRpc("updateSidebarSettings", { archivedShelfEnabled: true })).rejects.toThrow("validation");
+    await expect(h.behavior.callRpc("updateSidebarSettings", { archivedShelfEnabled: false })).resolves.toMatchObject({ workingShelf: true, archivedShelfEnabled: false });
+    await expect(h.behavior.callRpc("updateSidebarSettings", { removedPreviewSetting: true })).rejects.toThrow("validation");
   });
 });

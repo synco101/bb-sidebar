@@ -101,15 +101,15 @@ it("flushes a valid edit when leaving before the debounce expires", async () => 
   await waitFor(() => expect(stored.workingShelf).toBe(true));
 });
 
-it("removes obsolete archive-preview cache keys before an early save", async () => {
+it("removes obsolete preview cache keys before an early save", async () => {
   let stored = { ...DEFAULT_SIDEBAR_SETTINGS };
-  localStorage.setItem("bb-sidebar:settings-cache:v1", JSON.stringify({ ...stored, archivedShelfEnabled: true }));
+  localStorage.setItem("bb-sidebar:settings-cache:v1", JSON.stringify({ ...stored, removedPreviewSetting: true }));
   const pending = deferred<SidebarSettingsValues>();
   const writes: unknown[] = [];
   renderSlot({ component: SidebarSettings }, {}, { rpc: {
     ...extraRpc, getSidebarSettings: () => pending.promise,
     updateSidebarSettings: input => {
-      expect(input).not.toHaveProperty("archivedShelfEnabled");
+      expect(input).not.toHaveProperty("removedPreviewSetting");
       writes.push(input);
       stored = { ...stored, ...input as Partial<SidebarSettingsValues> };
       return stored;
@@ -119,7 +119,7 @@ it("removes obsolete archive-preview cache keys before an early save", async () 
   await waitFor(() => expect(writes).toEqual([{ workingShelf: true }]));
   await act(async () => { pending.resolve(DEFAULT_SIDEBAR_SETTINGS); });
   expect(screen.getByRole("switch", { name: "Working shelf" }).getAttribute("aria-checked")).toBe("true");
-  expect(JSON.parse(localStorage.getItem("bb-sidebar:settings-cache:v1")!)).not.toHaveProperty("archivedShelfEnabled");
+  expect(JSON.parse(localStorage.getItem("bb-sidebar:settings-cache:v1")!)).not.toHaveProperty("removedPreviewSetting");
 });
 
 it("keeps the typing debounce when an earlier settings save finishes", async () => {
