@@ -5,6 +5,7 @@ import { useBbContext, useBbNavigate, useRpc, type PluginSidebarProject } from "
 import { toast } from "sonner";
 import type { bbSidebarRpcContract } from "./server";
 import { usePortalScopeProps } from "./lib/portal-scope";
+import { ProjectModelsDialog } from "./ProjectModelsDialog";
 
 const itemClass = "cursor-pointer rounded-md px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-accent data-[disabled]:opacity-50";
 const fieldClass = "h-9 w-full min-w-0 rounded-md border border-border bg-background px-2.5 text-sm text-foreground outline-none focus:border-ring focus:ring-1 focus:ring-ring disabled:opacity-50";
@@ -39,6 +40,7 @@ function ProjectMenu({ project, children }: {
   const [hosts, setHosts] = useState<Array<{ id: string; name: string }> | null>(null);
   const [hostId, setHostId] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [modelsOpen, setModelsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const submitting = useRef(false);
@@ -93,6 +95,7 @@ function ProjectMenu({ project, children }: {
           <ContextMenu.Item asChild className={itemClass}>
             <a href={`/projects/${encodeURIComponent(project.id)}/settings`}>Project settings</a>
           </ContextMenu.Item>
+          <ContextMenu.Item className={itemClass} onSelect={() => setModelsOpen(true)}>Models…</ContextMenu.Item>
           <ContextMenu.Separator className="my-1 h-px bg-border" />
           <ContextMenu.Item className={itemClass} onSelect={() => begin("rename")}>Rename project</ContextMenu.Item>
           {hosts === null || hosts.length > 0 ? <ContextMenu.Item className={itemClass}
@@ -103,7 +106,8 @@ function ProjectMenu({ project, children }: {
   </>;
 
   return <>
-    {children({ items, onOpenChange: setMenuOpen, onCloseAutoFocus: (event) => { if (action) event.preventDefault(); } })}
+    {children({ items, onOpenChange: setMenuOpen, onCloseAutoFocus: (event) => { if (action || modelsOpen) event.preventDefault(); } })}
+    <ProjectModelsDialog projectId={project.id} projectName={project.name} open={modelsOpen} onOpenChange={setModelsOpen} />
     <Dialog.Root open={action !== null} onOpenChange={(open) => { if (!open && !busy) setAction(null); }}>
       <Dialog.Portal>
         <Dialog.Overlay {...portalScope} className="fixed inset-0 z-50 bg-black/40" />

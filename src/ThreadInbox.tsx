@@ -89,6 +89,7 @@ import { isWorkingTree } from "./working-tree";
 import { pickWorkingEmptyLine } from "./working-empty-lines";
 import "./working-empty-state.css";
 import { SCROLL_FADE_CLASS, useScrollFade } from "./useScrollFade";
+import { ProjectModelsButton } from "./ProjectModelsDialog";
 import {
   MAX_CHILD_EXPANSION,
   pruneChildExpansion,
@@ -1517,6 +1518,10 @@ export function ThreadInbox({
             projectIconRevision={projectIconRevision}
             onScopeChange={setScope}
           />
+          <ProjectModelsButton
+            projectId={scope === ALL_PROJECTS ? null : scope}
+            projectName={projects.find((project) => project.id === scope)?.name ?? "All projects"}
+          />
         </div>
 
         <p role="status" aria-live="polite" className="sr-only">
@@ -2221,7 +2226,7 @@ function ActiveProjectGroup({
           "relative z-20 bg-[linear-gradient(var(--sidebar-accent),var(--sidebar-accent)),linear-gradient(var(--sidebar),var(--sidebar))] shadow-lg ring-1 ring-sidebar-border",
       )}
     >
-      <section data-drag-visual="" className="relative" aria-label={`${projectName} project`}>
+      <section data-drag-visual="" className="group/project relative" aria-label={`${projectName} project`}>
         <ProjectStripe projectId={projectId} view={stripeView} className="z-10" />
         <button
           type="button"
@@ -2258,6 +2263,11 @@ function ActiveProjectGroup({
             />
           </span>
         </button>
+        <ProjectModelsButton
+          projectId={projectId}
+          projectName={projectName}
+          className="absolute right-6 top-1 z-10 opacity-0 focus-visible:opacity-100 group-hover/project:opacity-100"
+        />
         <ul
           ref={attachListAutoAnimateRef}
           aria-label={`${projectName} active threads`}
