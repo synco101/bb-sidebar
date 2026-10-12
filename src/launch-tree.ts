@@ -26,7 +26,7 @@ export function sdkLaunches(rows:readonly unknown[], threadId:string, parentId:s
       status:row.status,taskStatus:row.taskStatus,sourceSeqStart:row.sourceSeqStart,sourceSeqEnd:row.sourceSeqEnd};
     const status=row.status==="error" || row.status==="interrupted" || row.taskStatus==="failed" || row.taskStatus==="killed"
       ? "failed" : row.status==="completed" || row.taskStatus==="completed" ? "done" : "running";
-    const item:LaunchRow={id:`sdk:${id}`,callId:id,threadId,parentId,kind:delegation ? "native delegation" : "background-task",
+    const item:LaunchRow={id:`sdk:${threadId}:${id}`,callId:id,threadId,parentId,kind:delegation ? "native delegation" : "background-task",
       role:null,providerId:null,configuredModel:null,observedModel:null,status,
       startedAt:typeof row.startedAt==="number" ? row.startedAt : 0,
       finishedAt:typeof row.completedAt==="number" ? row.completedAt : null,source:"sdk",log};
@@ -34,10 +34,10 @@ export function sdkLaunches(rows:readonly unknown[], threadId:string, parentId:s
   });
 }
 export function mergeLaunches(journal:JournalLaunch[], sdk:LaunchRow[], bb:LaunchRow[]):LaunchRow[] {
-  const calls=new Map(journal.filter(row=>row.callId).map(row=>[row.callId!,row.id]));
+  const calls=new Map(journal.filter(row=>row.callId).map(row=>[`sdk:${row.threadId}:${row.callId}`,row.id]));
   const childIds=new Set(journal.filter(row=>row.kind==="bb-thread").map(row=>row.id));
   const result:LaunchRow[]=[...journal.map(row=>({...row,source:"journal" as const,log:{...row}})),
-    ...sdk.filter(row=>!calls.has(row.callId ?? "")).map(row=>({...row,parentId:row.parentId?.startsWith("sdk:") ? calls.get(row.parentId.slice(4)) ?? row.parentId : row.parentId})),
+    ...sdk.filter(row=>!calls.has(row.id)).map(row=>({...row,parentId:row.parentId?.startsWith("sdk:") ? calls.get(row.parentId) ?? row.parentId : row.parentId})),
     ...bb.filter(row=>!childIds.has(row.id))];
   const unique = new Map(result.map(row=>[row.id,row]));
   return [...unique.values()].sort((a,b)=>a.startedAt-b.startedAt || a.id.localeCompare(b.id));

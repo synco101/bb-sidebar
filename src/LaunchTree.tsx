@@ -75,6 +75,7 @@ export function LaunchTree({threadId}:{threadId:string}) {
     }});
     return dispose;
   },[open,sdk,threadId,threads]);
+  const currentLog=selected ? rows.find(row=>row.id===selected.id) ?? selected : null;
   return <div className="px-3 pb-1 text-2xs" onClick={event=>event.stopPropagation()}>
     <button type="button" aria-expanded={open} onClick={()=>setOpen(value=>!value)} className="text-muted-foreground hover:text-foreground">{open?"▾":"▸"} Launches</button>
     {open?<div role="region" aria-label="Launch tree">
@@ -84,10 +85,10 @@ export function LaunchTree({threadId}:{threadId:string}) {
         {row.kind} · {row.role??"role unknown"} · {row.configuredModel??"unknown"} → {row.observedModel??"unknown"} · {row.status}
       </button>)}
 
-      {selected?<div role="region" aria-label="Launch log" className="rounded border border-border p-2">
+      {currentLog?<div role="region" aria-label="Launch log" className="rounded border border-border p-2">
         <button type="button" onClick={()=>setSelected(null)}>Close log</button>
-        <pre className="max-h-64 overflow-auto whitespace-pre-wrap">{JSON.stringify(selected.log,null,2)}</pre>
-        <button type="button" className="underline" onClick={()=>navigate.toThread(selected.threadId)}>Open thread transcript</button>
+        <pre className="max-h-64 overflow-auto whitespace-pre-wrap">{JSON.stringify(currentLog.log,null,2)}</pre>
+        <button type="button" className="underline" onClick={()=>navigate.toThread(currentLog.threadId)}>Open thread transcript</button>
       </div>:null}
     </div>:null}
   </div>;

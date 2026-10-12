@@ -15,10 +15,12 @@ describe("launch tree UI",()=>{
   await act(async()=>render(<LaunchTree threadId="thr_root"/>));expect(mocks.rpc).not.toHaveBeenCalled();
   await act(async()=>fireEvent.click(screen.getByRole("button",{name:/Launches/})));
   expect(screen.getByRole("button",{name:/codex-bridge.*gpt-6.1-sol.*unknown.*running/})).toBeTruthy();
+  await act(async()=>fireEvent.click(screen.getByRole("button",{name:/codex-bridge.*running/})));
+  expect(screen.getByRole("region",{name:"Launch log"}).textContent).toContain('"status": "running"');
   launches=[agent,{...job,observedModel:"gpt-6.1-sol",status:"done",finishedAt:3}];
   await act(async()=>mocks.signals.get("thread:changed")!({id:"thr_root",metadata:{eventTypes:["item/delegation/completed"]}}));
   expect(screen.getByRole("button",{name:/codex-bridge.*gpt-6.1-sol.*gpt-6.1-sol.*done/})).toBeTruthy();
-  await act(async()=>fireEvent.click(screen.getByRole("button",{name:/codex-bridge.*done/})));
+  expect(screen.getByRole("region",{name:"Launch log"}).textContent).toContain('"status": "done"');
   expect(screen.getByRole("region",{name:"Launch log"}).textContent).toContain('"observedModel": "gpt-6.1-sol"');
  });
  it("retains SDK history when the journal plugin is unavailable and names the gap",async()=>{

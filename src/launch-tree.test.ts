@@ -29,4 +29,9 @@ describe("launch tree",()=>{
   const bb={...bridge,id:"thr_child",threadId:"thr_child",parentId:null,kind:"bb-thread",role:null,source:"bb",log:{threadId:"thr_child"}} as LaunchRow;
   expect(mergeLaunches([agent],[ ],[bb])).toHaveLength(2);
  });
+ it("does not merge identical call IDs from different threads",()=>{
+  const sdk=[...sdkLaunches([{workKind:"delegation",callId:"call-a",status:"pending"}],"thr_root"),...sdkLaunches([{workKind:"delegation",callId:"call-a",status:"pending"}],"thr_other")];
+  const rows=mergeLaunches([agent],sdk,[]);expect(rows).toHaveLength(2);expect(rows.map(row=>row.threadId).sort()).toEqual(["thr_other","thr_root"]);
+ });
+
 });
