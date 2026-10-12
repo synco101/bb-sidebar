@@ -34,4 +34,18 @@ describe("launch tree",()=>{
   const rows=mergeLaunches([agent],sdk,[]);expect(rows).toHaveLength(2);expect(rows.map(row=>row.threadId).sort()).toEqual(["thr_other","thr_root"]);
  });
 
+ it("SDK terminal status overrides a lost journal finish while preserving model provenance",()=>{
+  const sdk=sdkLaunches([{workKind:"delegation",callId:agent.callId,status:"interrupted",completedAt:5}],agent.threadId);
+  const [row]=mergeLaunches([agent],sdk,[]);
+  expect(row.status).toBe("failed");expect(row.finishedAt).toBe(5);expect(row.configuredModel).toBe(agent.configuredModel);
+ });
+ it("old running journal launch without a live counterpart is explicitly unconfirmed",()=>{
+  const [row]=mergeLaunches([agent],[],[],600001);
+  expect(row.confirmation).toBe("stale / unconfirmed");expect(row.status).toBe("running");
+ });
+ it("stopped and paused SDK tasks are explicit",()=>{
+  const rows=sdkLaunches(["stopped","paused"].map(taskStatus=>({workKind:"workflow",workflow:null,itemId:taskStatus,taskStatus,status:"pending"})),"thr_root");
+  expect(rows[0].status).toBe("failed");expect(rows[1].confirmation).toBe("paused");
+ });
+
 });
