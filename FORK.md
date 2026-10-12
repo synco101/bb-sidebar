@@ -35,3 +35,11 @@ The Models dialog uses provider display names/reasoning catalogs and model-routi
 Do not install stale `feat/model-routing`, `feat/archive-shelf` or the retired custom BB build branches. Do not delete them. This contribution is prepared on `feat/single-authority-models`; installation requires the owner step-9 batch and a matching frozen release, never a working tree.
 
 Follow-up TEST analyst corrections: warning fixes now use plugin missingReviewerProviders, duplicate saves are blocked synchronously, catalogs retain available providers, and deferred/rejected save, persisted Coordinator round-trip and empty-draft recovery have controls. Requires the prepared plugin extension; cross-family review pending.
+
+## Launch tree (prepared, GitLocal #200)
+
+Each sidebar thread has a Launches disclosure combining descendant BB threads, SDK delegation/background history and the scoped model-routing journal. Native callId correlates SDK and journal rows; configured and observed identities are displayed independently with explicit unknowns. Parent launch IDs preserve Claude → Codex bridge nesting. SDK thread delegation/background realtime events and five-second journal refresh while expanded update terminal status. All journal and SDK history pages are read; child transcripts and metadata logs open from rows. No prompt/transcript text is copied into the log. Native hook activation is a separate owner-batch prerequisite.
+
+Guard tests: src/launch-tree.test.ts and src/LaunchTree.test.tsx (nested models/status, deduplication, background jobs, cycles, metadata-only logs, realtime update, unavailable journal and nested BB descendants). Old ChildThreadList navigation/archive behaviour is preserved.
+
+Review repairs: journal/SDK terminal evidence is reconciled without rewriting the producer journal. Old running launches with no live counterpart display stale/unconfirmed after5 minutes. Pending BB children stay running; stopped tasks fail and paused tasks are explicit. History is cached per expanded tree, SDK refreshes newest pages and journal listLaunchChanges reads per-thread revisions; timers pause on hidden/offscreen/collapse/unmount. Initial snapshot still uses listLaunches for old records. Requires the prepared revision RPC; no live installation.

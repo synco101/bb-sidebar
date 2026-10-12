@@ -1,3 +1,4 @@
+import { LaunchTree } from "./LaunchTree";
 import {
   useId,
   useLayoutEffect,
@@ -561,6 +562,7 @@ export function ThreadCard({
             </>
             )}
           </div>
+          <LaunchTree threadId={thread.id} />
           {childThreads.length > 0 &&
           (childrenExpanded ||
             collapsedChildThreads(

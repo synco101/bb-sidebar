@@ -1,4 +1,12 @@
+## 2026-10-12 — Launch tree review repairs (Refs GitLocal#200)
+
+Reconcile terminal SDK/journal state and label unconfirmed launches; incremental journal revisions and cached SDK history pause refresh when hidden, offscreen or collapsed.
+
 # Changelog
+
+## 2026-10-12 — Launch tree (Refs synco101/GitLocal#200)
+
+Sidebar thread disclosures merge BB child threads, SDK delegation/background history and scoped launch journals, with configured/observed models, nested status updates and metadata logs.
 
 ## [Unreleased]
 
