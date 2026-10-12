@@ -21,6 +21,7 @@ Branch `alexander/main` = upstream `origin/main` (yusuf8834/bb-sidebar) plus:
 | Archive: Archived shelf (filter, dates, restore) | `src/ThreadInbox.test.tsx` ("keeps the archive shelf ..."), `src/server.test.ts` ("keeps the Archived shelf setting ...") |
 | Archive: hover Archive button on Settled rows | `src/ThreadInbox.test.tsx` ("archives one Settled thread from its row") |
 | Archive: Settings > Archiving (all settled, per project, confirmation list) | `src/ThreadInbox.test.tsx` ("archives every Settled thread after one confirmation") |
+| Archive: Archive-all button in the Settled shelf header, left of the brush | `src/ThreadInbox.test.tsx` ("archives every Settled thread from the shelf header, beyond the first page") |
 | Project colours and Archived shelf on by default | `src/server.test.ts` ("stores the grouped sidebar settings through RPC", "persists color display mode ...") |
 | Per-project models gear | `src/ProjectModelsDialog.test.tsx` |
 

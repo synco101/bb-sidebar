@@ -34,7 +34,7 @@ import { ProjectColorsProvider, useProjectColor } from "./ProjectColors";
 import { ThreadCard, type ThreadReorderControls } from "./ThreadCard";
 import { SlimRow } from "./SlimRow";
 import { CleanSettledDialog } from "./CleanSettledDialog";
-import { ArchivedThreadList } from "./ArchiveShelf";
+import { ArchiveSettledDialog, ArchivedThreadList } from "./ArchiveShelf";
 import { SearchResults } from "./SearchResults";
 import { childThreadsByParent, collapsedChildThreads } from "./ChildThreadList";
 import {
@@ -2072,7 +2072,13 @@ function CompactShelf({
       count={threads.length}
       expanded={expanded}
       onToggle={onToggle}
-      action={shelf === "settled" ? <CleanSettledDialog threadIds={threads.map((thread) => thread.id)} onNavigate={onNavigate} /> : undefined}
+      action={shelf === "settled" ? (
+        <>
+          {showArchiveButton ? <ArchiveSettledDialog variant="icon" threads={threads} /> : null}
+          <CleanSettledDialog threadIds={threads.map((thread) => thread.id)} onNavigate={onNavigate} />
+        </>
+      ) : undefined}
+      actionSlots={shelf === "settled" && showArchiveButton ? 2 : 1}
     >
       <ul ref={attachListAutoAnimateRef} className="flex flex-col gap-px">
         {visibleThreads.map((thread) => (
@@ -2170,6 +2176,7 @@ function CollapsibleShelf({
   expanded,
   onToggle,
   action,
+  actionSlots = 1,
   hideCount = false,
   children,
   hidden = false,
@@ -2181,6 +2188,8 @@ function CollapsibleShelf({
   expanded: boolean;
   onToggle: () => void;
   action?: React.ReactNode;
+  /** How many absolutely placed size-4 icons `action` holds, to reserve room for them. */
+  actionSlots?: 1 | 2;
   hideCount?: boolean;
   children: React.ReactNode;
   hidden?: boolean;
@@ -2206,7 +2215,7 @@ function CollapsibleShelf({
           </span>
           <span className="h-px flex-1 bg-sidebar-border" />
           {action ? (
-            <span aria-hidden="true" className="size-4 shrink-0" />
+            <span aria-hidden="true" className={cn("h-4 shrink-0", actionSlots === 2 ? "w-10" : "w-4")} />
           ) : null}
           <span className={TRAILING_GLYPH_BOX_CLASS}>
             <Icon

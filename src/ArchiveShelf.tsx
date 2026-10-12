@@ -43,7 +43,14 @@ export function ArchiveSettings() {
  * Archives every thread on the Settled shelf (already narrowed by the project
  * picker) after one confirmation. They land on the Archived shelf below.
  */
-export function ArchiveSettledDialog({ threads }: { threads: readonly PluginSidebarThread[] }) {
+export function ArchiveSettledDialog({
+  threads,
+  variant = "button",
+}: {
+  threads: readonly PluginSidebarThread[];
+  /** "icon" sits in the Settled shelf header, left of the clean-resources brush. */
+  variant?: "button" | "icon";
+}) {
   const rpc = useRpc<typeof bbSidebarRpcContract>();
   const portalScope = usePortalScopeProps();
   const [open, setOpen] = useState(false);
@@ -74,15 +81,28 @@ export function ArchiveSettledDialog({ threads }: { threads: readonly PluginSide
 
   return (
     <Dialog.Root open={open} onOpenChange={(next) => { if (!busy) setOpen(next); }}>
-      <button
-        type="button"
-        aria-label="Archive all settled threads"
-        disabled={count === 0}
-        onClick={(event) => { event.stopPropagation(); setOpen(true); }}
-        className={secondaryButtonClass}
-      >
-        Archive all…
-      </button>
+      {variant === "icon" ? (
+        <button
+          type="button"
+          aria-label="Archive all settled threads"
+          title="Archive all settled threads"
+          disabled={count === 0}
+          onClick={(event) => { event.stopPropagation(); setOpen(true); }}
+          className="absolute bottom-1 right-[3.375rem] z-10 flex size-4 items-center justify-center rounded text-muted-foreground/40 hover:bg-sidebar-accent hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:hidden"
+        >
+          <Icon name="Archive" className="size-3" aria-hidden />
+        </button>
+      ) : (
+        <button
+          type="button"
+          aria-label="Archive all settled threads"
+          disabled={count === 0}
+          onClick={(event) => { event.stopPropagation(); setOpen(true); }}
+          className={secondaryButtonClass}
+        >
+          Archive all…
+        </button>
+      )}
       <Dialog.Portal>
         <Dialog.Overlay {...portalScope} className="fixed inset-0 z-50 bg-black/40" />
         <Dialog.Content

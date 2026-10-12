@@ -5148,6 +5148,32 @@ describe("parking threads", () => {
     expect(new Set((archiveThreads.mock.calls[0] as unknown as [{ threadIds: string[] }])[0].threadIds)).toEqual(new Set(["thr_a", "thr_b"]));
   });
 
+  it("archives every Settled thread from the shelf header, beyond the first page", async () => {
+    const settledThreads = Array.from({ length: 12 }, (_, index) => thread({ id: `thr_${index}`, title: `Done ${index}` }));
+    const archiveThreads = vi.fn(() => ({ archived: 12, failures: [] }));
+    renderSlot(inbox, listProps, {
+      sidebarThreads: {
+        status: "ready",
+        threads: settledThreads,
+        projects: [{ id: "proj_1", name: "bb", isPersonal: false, href: "", settingsHref: "" }],
+      },
+      rpc: {
+        getSidebarSettings: () => ({ ...defaultSidebarSettings, archivedShelfEnabled: true }),
+        listLifecycle: () => ({ rows: settledThreads.map((item) => ({
+          threadId: item.id, settledAt: 200, snoozedUntil: null, snoozedAt: null,
+        })) }),
+        archiveThreads,
+      },
+    });
+    const shelf = await screen.findByRole("region", { name: "Settled" });
+    fireEvent.click(await within(shelf).findByRole("button", { name: "Archive all settled threads" }));
+    const dialog = await screen.findByRole("dialog", { name: "Archive 12 settled threads?" });
+    expect(archiveThreads).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Archive all" }));
+    await waitFor(() => expect(archiveThreads).toHaveBeenCalledTimes(1));
+    expect(new Set((archiveThreads.mock.calls[0] as unknown as [{ threadIds: string[] }])[0].threadIds)).toEqual(new Set(settledThreads.map((item) => item.id)));
+  });
+
   it("archives one Settled thread from its row", async () => {
     const settledThreads = [thread({ id: "thr_a", title: "Done A" })];
     const archiveThreads = vi.fn(() => ({ archived: 1, failures: [] }));

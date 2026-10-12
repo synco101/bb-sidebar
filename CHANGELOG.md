@@ -6,6 +6,7 @@
 
 - Archive settled threads from Settings > Archiving, across all projects or a selected project, after reviewing a confirmation list.
 - Each Settled row has an Archive button on hover.
+- The Settled shelf header has an Archive-all button left of the Clean brush (shown while archiving is enabled): it archives every settled thread in the current project scope after a confirmation list (2026-10-12).
 - Optional Archived shelf, disabled by default. Enable it in Settings > Archiving to browse archived threads and restore them.
 - Optional project colors, disabled by default. Each project gets an automatic color based on its ID, with a custom color picker and reset control in Settings > Project appearance. Project groups share one continuous stripe; ungrouped rows have their own stripe.
 - While project colors are enabled, all project names stay colored. Show stripes in full and collapsed mode, full mode only, or grouped projects only when sorting by Project.
