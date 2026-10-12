@@ -532,3 +532,5 @@
 
 ## 2026-10-12
 - Prepared Models dialog redesign (Refs synco101/GitLocal#193): Auto/Manual, inherited/changed roles, ordered chip editor, catalog names, plugin guard warnings and scope tabs. Profile schema and Archive behavior preserved.
+
+- Models test-analysis fixes: authoritative missing-family fix, synchronous save guard, per-provider catalog resilience, async-save/round-trip/draft recovery tests.

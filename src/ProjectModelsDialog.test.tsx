@@ -6,7 +6,7 @@ vi.mock("@get-bb/plugin-sdk/app", () => ({
   useSdk: () => ({ plugins: { callRpc: mocks.callRpc }, system: { executionOptions: mocks.executionOptions } }),
   experimental_ProviderModelPicker: () => null,
 }));
-import { ProjectModelsPanel, type Layers } from "./ProjectModelsDialog";
+import { ProjectModelsPanel, ProjectModelsDialog, type Layers } from "./ProjectModelsDialog";
 
 const opus = { providerId: "claude-code", model: "claude-opus-5-5", reasoningLevel: "high" };
 const sol = { providerId: "codex", model: "gpt-6.1-sol", reasoningLevel: "medium" };
@@ -110,7 +110,7 @@ describe("project models panel", () => {
   });
 
   it("shows cross-family warning and fix only when plugin reports broken config", async () => {
-    mocks.callRpc.mockImplementation(async({method})=>method==="getWarnings"?[{code:"cross-family",role:"reviewers",message:"No GPT reviewer for code by Opus 5.5. Runs will stop at review."}]:method==="getPolicyRules"?{version:1,guards:[]}:layers);
+    mocks.callRpc.mockImplementation(async({method})=>method==="getWarnings"?[{code:"cross-family",role:"reviewers",missingReviewerProviders:["codex"],message:"No GPT reviewer for code by Opus 5.5. Runs will stop at review."}]:method==="getPolicyRules"?{version:1,guards:[]}:layers);
     await show("proj_1");
     expect(screen.getByText(/No GPT reviewer/)).toBeTruthy();
     await act(async()=>fireEvent.click(screen.getByRole("button",{name:"Add GPT-6.1-Sol"})));
@@ -158,6 +158,77 @@ describe("project models panel", () => {
     await show("proj_1");
     await act(async()=>fireEvent.click(within(screen.getByRole("region",{name:"Workers"})).getByRole("radio",{name:"Manual"})));
     expect(mocks.callRpc.mock.calls.filter(([call])=>call.method.startsWith("save"))).toHaveLength(0);
+  });
+
+  it("offers only the family recommended by plugin warnings", async () => {
+    layers.effective.workers={mode:"pool",candidates:[opus]};
+    layers.effective.reviewers={mode:"pool",candidates:[{...opus,model:"claude-sonnet-5-5"}]};
+    mocks.callRpc.mockImplementation(async({method})=>method==="getWarnings"?[{code:"cross-family",role:"reviewers",missingReviewerProviders:["codex"],message:"No GPT reviewer"}]:method==="getPolicyRules"?{version:1,guards:[]}:layers);
+    await show("proj_1");
+    expect(screen.getByRole("button",{name:"Add GPT-6.1-Sol"})).toBeTruthy();
+    expect(screen.queryByRole("button",{name:"Add Opus 5.5"})).toBeNull();
+  });
+
+  it("blocks duplicate saves and Done until a pending save and warnings finish", async () => {
+    let finish!:(value:Layers)=>void;
+    mocks.callRpc.mockImplementation(async({method})=>method==="getWarnings"?[]:method==="getPolicyRules"?{version:1,guards:[]}:method==="saveOverrides"?new Promise(resolve=>{finish=resolve;}):layers);
+    await act(async()=>render(<ProjectModelsPanel projectId="proj_1" onDone={()=>{}}/>));
+    const auto=within(screen.getByRole("region",{name:"Workers"})).getByRole("radio",{name:"Auto"});
+    await act(async()=>{fireEvent.click(auto);fireEvent.click(auto);});
+    expect(mocks.callRpc.mock.calls.filter(([call])=>call.method.startsWith("save"))).toHaveLength(1);
+    expect((screen.getByRole("button",{name:"Done"}) as HTMLButtonElement).disabled).toBe(true);
+    await act(async()=>finish({...layers,effective:{...layers.effective,workers:{mode:"adaptive"}}}));
+    expect((screen.getByRole("button",{name:"Done"}) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("reports rejected save and preserves saved settings", async () => {
+    mocks.callRpc.mockImplementation(async({method})=>{
+      if(method==="getWarnings")return [];
+      if(method==="getPolicyRules")return {version:1,guards:[]};
+      if(method==="saveOverrides")throw new Error("workers: model is unavailable");
+      return layers;
+    });
+    await show("proj_1");
+    await act(async()=>fireEvent.click(within(screen.getByRole("region",{name:"Workers"})).getByRole("radio",{name:"Auto"})));
+    expect(screen.getByRole("alert").textContent).toContain("workers: model is unavailable");
+    expect(within(screen.getByRole("region",{name:"Workers"})).getByRole("radio",{name:"Manual"}).getAttribute("aria-checked")).toBe("true");
+  });
+
+  it.each([null,"proj_1"])("persists Coordinator Auto/Manual round trip at scope %s", async projectId=>{
+    layers={projectId,defaults:{orchestratorAllowed:null,workers:{mode:"adaptive"},reviewers:{mode:"adaptive"}},overrides:projectId?{}:null,effective:{orchestratorAllowed:null,workers:{mode:"adaptive"},reviewers:{mode:"adaptive"}}};
+    mocks.callRpc.mockImplementation(async({method,input})=>{
+      if(method==="getWarnings")return [];
+      if(method==="getPolicyRules")return {version:1,guards:[]};
+      if(method==="saveDefaults")layers={projectId:null,defaults:input.profile,overrides:null,effective:input.profile};
+      if(method==="saveOverrides")layers={...layers,overrides:input.overrides,effective:{...layers.defaults,...input.overrides}};
+      return layers;
+    });
+    await show(projectId);
+    const coordinator=within(screen.getByRole("region",{name:"Coordinator"}));
+    await act(async()=>fireEvent.click(coordinator.getByRole("radio",{name:"Manual"})));
+    expect(layers.effective.orchestratorAllowed).toEqual([sol]);
+    await act(async()=>fireEvent.click(coordinator.getByRole("radio",{name:"Auto"})));
+    expect(layers.effective).toEqual({orchestratorAllowed:null,workers:{mode:"adaptive"},reviewers:{mode:"adaptive"}});
+    if(projectId)expect(layers.overrides).toEqual({});
+  });
+
+  it("adds a High model and opens the editor after an empty draft", async () => {
+    mocks.callRpc.mockImplementation(async({method,input})=>{
+      if(method==="getWarnings")return [];
+      if(method==="getPolicyRules")return {version:1,guards:[]};
+      if(method==="saveOverrides")layers={...layers,overrides:input.overrides,effective:{...layers.defaults,...input.overrides}};
+      return layers;
+    });
+    await act(async()=>render(<ProjectModelsPanel projectId="proj_1" onDone={()=>{}}/>));
+    const workers=within(screen.getByRole("region",{name:"Workers"}));
+    await act(async()=>fireEvent.click(workers.getByRole("button",{name:/GPT-6.1-Sol/})));
+    await act(async()=>fireEvent.click(workers.getByRole("button",{name:"Remove"})));
+    expect((screen.getByRole("button",{name:"Done"}) as HTMLButtonElement).disabled).toBe(true);
+    await act(async()=>fireEvent.click(workers.getByRole("button",{name:"Add model"})));
+    await act(async()=>fireEvent.click(workers.getByRole("button",{name:"GPT-6.1-Sol"})));
+    expect(layers.effective.workers).toEqual({mode:"pool",candidates:[{...sol,reasoningLevel:"high"}]});
+    expect(workers.getByRole("radiogroup",{name:"Reasoning"})).toBeTruthy();
+    expect((screen.getByRole("button",{name:"Done"}) as HTMLButtonElement).disabled).toBe(false);
   });
 
 });

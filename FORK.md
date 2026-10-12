@@ -33,3 +33,5 @@ Back to upstream: `bb plugin install git:https://github.com/yusuf8834/bb-sidebar
 The Models dialog uses provider display names/reasoning catalogs and model-routing getWarnings/getPolicyRules. Auto opens pools while mandatory eligibility guards apply. Final-chip removal is an unsaved local empty draft, because the unchanged store schema requires nonempty pools; add a model or choose Auto before Done. Existing gear/context-menu entry points and Archive guards remain.
 
 Do not install stale `feat/model-routing`, `feat/archive-shelf` or the retired custom BB build branches. Do not delete them. This contribution is prepared on `feat/single-authority-models`; installation requires the owner step-9 batch and a matching frozen release, never a working tree.
+
+Follow-up TEST analyst corrections: warning fixes now use plugin missingReviewerProviders, duplicate saves are blocked synchronously, catalogs retain available providers, and deferred/rejected save, persisted Coordinator round-trip and empty-draft recovery have controls. Requires the prepared plugin extension; cross-family review pending.

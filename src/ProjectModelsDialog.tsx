@@ -16,10 +16,10 @@ type RoleKey = keyof Profile;
 type Overrides = Partial<Profile>;
 export type Layers = { projectId: string | null; defaults: Profile; overrides: Overrides | null; effective: Profile };
 type CatalogModel = { providerId: string; model: string; displayName: string; efforts: string[] };
-type Warning = { code: string; role: string; message: string };
+type Warning = { code: string; role: string; message: string; missingReviewerProviders?:string[] };
 const layersSchema = z.looseObject({projectId:z.string().nullable(), defaults:z.record(z.string(),z.unknown()),
   overrides:z.record(z.string(),z.unknown()).nullable(), effective:z.record(z.string(),z.unknown())}) as unknown as z.ZodType<Layers>;
-const warningSchema = z.array(z.object({code:z.string(),role:z.string(),message:z.string()}));
+const warningSchema = z.array(z.object({code:z.string(),role:z.string(),message:z.string(),missingReviewerProviders:z.array(z.string()).optional()}));
 const rulesSchema = z.looseObject({version:z.literal(1),guards:z.array(z.object({code:z.string(),description:z.string()}))});
 const ROLES = [
   {key:"orchestratorAllowed",title:"Coordinator",description:"Your chat model. Manual checks the allowed models."},
@@ -101,24 +101,30 @@ export function ProjectModelsPanel({projectId,onDone}: {projectId:string|null;on
   const [warnings,setWarnings]=useState<Warning[]>([]),[error,setError]=useState<string|null>(null),[pending,setPending]=useState(false);
   const [drafts,setDrafts]=useState<Partial<Record<RoleKey,Selection[]>>>({});
   const [rules,setRules]=useState<Array<{code:string;description:string}>>([]);
-  const mounted=useRef(0);
+  const mounted=useRef(0),saveInFlight=useRef(false);
   const call=useCallback((method:string,input:Record<string,unknown>)=>sdkRef.current.plugins.callRpc({pluginId:MODEL_ROUTING_PLUGIN_ID,method,input:input as never,outputSchema:layersSchema}),[]);
   const warningCall=useCallback((id:string|null)=>sdkRef.current.plugins.callRpc({pluginId:MODEL_ROUTING_PLUGIN_ID,method:"getWarnings",input:{projectId:id} as never,outputSchema:warningSchema}),[]);
   const report=(cause:unknown)=>setError(cause instanceof Error?cause.message:"Model routing plugin is not installed or not running.");
   useEffect(()=>{
-    const generation=++mounted.current;setLayers(null);setError(null);setPending(false);setDrafts({});
+    const generation=++mounted.current;setLayers(null);setError(null);setPending(false);setDrafts({});saveInFlight.current=false;
     call("getLayers",{projectId}).then(next=>{if(generation===mounted.current)setLayers(next);},cause=>{if(generation===mounted.current)report(cause);});
     warningCall(projectId).then(next=>{if(generation===mounted.current)setWarnings(next);},cause=>{if(generation===mounted.current)report(cause);});
     sdkRef.current.plugins.callRpc({pluginId:MODEL_ROUTING_PLUGIN_ID,method:"getPolicyRules",input:{} as never,outputSchema:rulesSchema}).then(next=>{if(generation===mounted.current)setRules(next.guards);},cause=>{if(generation===mounted.current)report(cause);});
-    Promise.all(["claude-code","codex"].map(async providerId=>{
+    Promise.allSettled(["claude-code","codex"].map(async providerId=>{
       const options=await sdkRef.current.system.executionOptions({providerId});
       if(options.modelLoadError)throw new Error(`${providerId}: ${options.modelLoadError.detail ?? options.modelLoadError.code}`);
       return options.models.map(m=>({providerId,model:m.model,displayName:m.displayName,efforts:m.supportedReasoningEfforts.map(e=>e.reasoningEffort)}));
-    })).then(groups=>{if(generation===mounted.current)setCatalog(groups.flat());},cause=>{if(generation===mounted.current)report(cause);});
+    })).then(groups=>{
+      if(generation!==mounted.current)return;
+      setCatalog(groups.flatMap(group=>group.status==="fulfilled"?group.value:[]));
+      const failure=groups.find(group=>group.status==="rejected");
+      if(failure?.status==="rejected")report(failure.reason);
+    });
     return ()=>{mounted.current++;};
   },[call,warningCall,projectId]);
   const save=(profile:Profile,overrides:Overrides)=>{
-    if(!layers||pending)return;
+    if(!layers||saveInFlight.current)return;
+    saveInFlight.current=true;
     const generation=mounted.current;setPending(true);
     const operation=layers.projectId===null?call("saveDefaults",{profile}):call("saveOverrides",{projectId:layers.projectId,overrides});
     operation.then(async next=>{
@@ -126,10 +132,10 @@ export function ProjectModelsPanel({projectId,onDone}: {projectId:string|null;on
       setLayers(next);setError(null);
       try{const nextWarnings=await warningCall(next.projectId);if(generation===mounted.current)setWarnings(nextWarnings);}
       catch(cause){if(generation===mounted.current)report(cause);}
-    },cause=>{if(generation===mounted.current)report(cause);}).finally(()=>{if(generation===mounted.current)setPending(false);});
+    },cause=>{if(generation===mounted.current)report(cause);}).finally(()=>{if(generation===mounted.current){saveInFlight.current=false;setPending(false);}});
   };
   const setRole=(key:RoleKey,value:Profile[RoleKey]|undefined)=>{
-    if(!layers)return;
+    if(!layers||saveInFlight.current)return;
     const list=value===undefined?null:listOf(key,value);
     if(list?.length===0){setDrafts(current=>({...current,[key]:[]}));return;}
     setDrafts(current=>{const {[key]:_dropped,...rest}=current;return rest;});
@@ -164,7 +170,7 @@ export function ProjectModelsPanel({projectId,onDone}: {projectId:string|null;on
         {inheritedSession?<p className="mt-3 text-xs text-muted-foreground">Same as parent session</p>:list?<ModelChain role={role.key} list={list} catalog={catalog} disabled={pending} onChange={next=>setRole(role.key,fromList(role.key,next))}/>:<p className="mt-3 text-xs text-muted-foreground">{role.key==="orchestratorAllowed"?"Any model you pick in the chat. No warnings.":role.key==="workers"?"The pipeline and the models choose on their own.":"Chosen automatically. The pipeline still requires the other family."}</p>}
         {warnings.filter(w=>w.role===(role.key==="orchestratorAllowed"?"coordinator":role.key)).map((warning,i)=><div className="mt-2 text-xs text-destructive-text" key={`${warning.code}/${i}`}>
           <p>{warning.message}</p>
-          {warning.code==="cross-family"?catalog.filter(m=>(m.model==="gpt-6.1-sol"||m.model==="claude-opus-5-5") && m.efforts.includes("high") && !(list??[]).some(item=>item.providerId===m.providerId && item.model===m.model)).map(m=><button key={m.model} type="button" className={action} disabled={pending}
+          {warning.code==="cross-family"?catalog.filter(m=>warning.missingReviewerProviders?.includes(m.providerId) && (m.model==="gpt-6.1-sol"||m.model==="claude-opus-5-5") && m.efforts.includes("high") && !(list??[]).some(item=>item.providerId===m.providerId && item.model===m.model)).map(m=><button key={m.model} type="button" className={action} disabled={pending}
             onClick={()=>setRole(role.key,fromList(role.key,[...(list??[]),{providerId:m.providerId,model:m.model,reasoningLevel:"high"}]))}>Add {m.displayName}</button>):null}
         </div>)}
       </section>;
