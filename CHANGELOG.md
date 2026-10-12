@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-10-12 — Launch tree (Refs synco101/GitLocal#200)
+
+Sidebar thread disclosures merge BB child threads, SDK delegation/background history and scoped launch journals, with configured/observed models, nested status updates and metadata logs.
+
 ## [Unreleased]
 
 ### Added
