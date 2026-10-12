@@ -2,7 +2,7 @@
 import {act,cleanup,fireEvent,render,screen} from "@testing-library/react";
 import {afterEach,beforeEach,describe,it,expect,vi} from "vitest";
 const mocks=vi.hoisted(()=>({rpc:vi.fn(),timeline:vi.fn(),navigate:vi.fn(),signals:new Map<string,(value:unknown)=>void>(),threads:[] as any[]}));
-vi.mock("@get-bb/plugin-sdk/app",()=>({useSdk:()=>({plugins:{callRpc:mocks.rpc},threads:{timeline:mocks.timeline,defaultExecutionOptions:async()=>({model:"gpt-6.1-sol"})}}),useBbNavigate:()=>({toThread:mocks.navigate}),experimental_useSidebarThreads:()=>({threads:mocks.threads}),useRealtime:(topic:string,handler:(value:unknown)=>void)=>mocks.signals.set(topic,handler)}));
+vi.mock("@get-bb/plugin-sdk/app",()=>({useSdk:()=>({subscribe:({event,callback}:any)=>{mocks.signals.set(event,callback);return()=>mocks.signals.delete(event);},plugins:{callRpc:mocks.rpc},threads:{timeline:mocks.timeline,defaultExecutionOptions:async()=>({model:"gpt-6.1-sol"})}}),useBbNavigate:()=>({toThread:mocks.navigate}),experimental_useSidebarThreads:()=>({threads:mocks.threads}),useRealtime:(topic:string,handler:(value:unknown)=>void)=>mocks.signals.set(topic,handler)}));
 import {LaunchTree} from "./LaunchTree";
 const agent={id:"a",threadId:"thr_root",parentId:null,kind:"claude-agent",role:"workers",providerId:"claude-code",configuredModel:"claude-opus-5-5",observedModel:null,status:"running",startedAt:1,finishedAt:null};
 const job={...agent,id:"b",parentId:"a",kind:"codex-bridge",providerId:"codex",configuredModel:"gpt-6.1-sol",startedAt:2};
@@ -11,12 +11,12 @@ beforeEach(()=>{launches=[agent,job];mocks.threads=[];mocks.signals.clear();mock
 afterEach(cleanup);
 async function open(){await act(async()=>render(<LaunchTree threadId="thr_root"/>));await act(async()=>fireEvent.click(screen.getByRole("button",{name:/Launches/})));}
 describe("launch tree UI",()=>{
- it("fetches only on expansion, renders both models and refreshes running to done on journal event",async()=>{
+ it("fetches only on expansion, renders both models and refreshes running to done on SDK delegation event",async()=>{
   await act(async()=>render(<LaunchTree threadId="thr_root"/>));expect(mocks.rpc).not.toHaveBeenCalled();
   await act(async()=>fireEvent.click(screen.getByRole("button",{name:/Launches/})));
   expect(screen.getByRole("button",{name:/codex-bridge.*gpt-6.1-sol.*unknown.*running/})).toBeTruthy();
   launches=[agent,{...job,observedModel:"gpt-6.1-sol",status:"done",finishedAt:3}];
-  await act(async()=>mocks.signals.get("model-routing-launches-changed")!({threadId:"thr_root"}));
+  await act(async()=>mocks.signals.get("thread:changed")!({id:"thr_root",metadata:{eventTypes:["item/delegation/completed"]}}));
   expect(screen.getByRole("button",{name:/codex-bridge.*gpt-6.1-sol.*gpt-6.1-sol.*done/})).toBeTruthy();
   await act(async()=>fireEvent.click(screen.getByRole("button",{name:/codex-bridge.*done/})));
   expect(screen.getByRole("region",{name:"Launch log"}).textContent).toContain('"observedModel": "gpt-6.1-sol"');

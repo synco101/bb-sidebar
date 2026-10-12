@@ -1,5 +1,5 @@
 import { useCallback,useEffect,useRef,useState } from "react";
-import { useSdk,useRealtime,useBbNavigate,experimental_useSidebarThreads as useSidebarThreads } from "@get-bb/plugin-sdk/app";
+import { useSdk,useBbNavigate,experimental_useSidebarThreads as useSidebarThreads } from "@get-bb/plugin-sdk/app";
 import { z } from "zod";
 import { launchSchema,launchForest,mergeLaunches,sdkLaunches,type JournalLaunch,type LaunchRow } from "./launch-tree";
 
@@ -64,9 +64,17 @@ export function LaunchTree({threadId}:{threadId:string}) {
   const loadRef=useRef(load);loadRef.current=load;
   useEffect(()=>{generation.current++;setRows([]);setSelected(null);setError(null);void load();return()=>{generation.current++;};},[threadId,open]);
   useEffect(()=>{if(!open)return;void load();const timer=setInterval(()=>void loadRef.current(),5000);return()=>clearInterval(timer);},[open,load]);
-  const signal=(value:unknown)=>{if(value && typeof value==="object" && "threadId" in value && value.threadId===threadId)void loadRef.current();};
-  useRealtime("model-routing-launches-changed",signal);
-  useRealtime("model-routing-thread-changed",signal);
+  useEffect(()=>{
+    if(!open || typeof sdk.subscribe!=="function")return;
+    const ids=new Set([threadId]);
+    for(let grew=true;grew;){grew=false;for(const thread of threads){if(thread.parentThreadId && ids.has(thread.parentThreadId) && !ids.has(thread.id)){ids.add(thread.id);grew=true;}}}
+    const dispose=sdk.subscribe({event:"thread:changed",callback:event=>{
+      if(!event.id || !ids.has(event.id))return;
+      const kinds=event.metadata?.eventTypes;
+      if(!kinds?.length || kinds.some(kind=>/delegation|backgroundTask|item\/completed|thread\/identity|turn\/completed/.test(kind)))void loadRef.current();
+    }});
+    return dispose;
+  },[open,sdk,threadId,threads]);
   return <div className="px-3 pb-1 text-2xs" onClick={event=>event.stopPropagation()}>
     <button type="button" aria-expanded={open} onClick={()=>setOpen(value=>!value)} className="text-muted-foreground hover:text-foreground">{open?"▾":"▸"} Launches</button>
     {open?<div role="region" aria-label="Launch tree">
