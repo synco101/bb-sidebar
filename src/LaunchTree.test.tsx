@@ -60,4 +60,10 @@ describe("launch tree UI",()=>{
   view.unmount();expect(mocks.signals.size).toBe(0);expect(vi.getTimerCount()).toBe(0);vi.useRealTimers();vi.restoreAllMocks();
  });
 
+ it("uses the SDK sequence cursor on refresh without reloading old pages",async()=>{
+  mocks.timeline.mockResolvedValue({rows:[],maxSeq:42,activeBackgroundCommands:[],timelinePage:{hasOlderRows:false}});
+  await open();await act(async()=>mocks.signals.get("thread:changed")!({id:"thr_root",metadata:{eventTypes:["system/thread/interrupted"]}}));
+  expect(mocks.timeline).toHaveBeenLastCalledWith(expect.objectContaining({afterSequence:"42"}));
+ });
+
 });

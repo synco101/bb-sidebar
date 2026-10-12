@@ -11,7 +11,7 @@ export function LaunchTree({threadId}:{threadId:string}) {
   const host=useRef<HTMLDivElement>(null);
   const [visible,setVisible]=useState(typeof IntersectionObserver==="undefined"),[foreground,setForeground]=useState(!document.hidden);
   const enabled=useRef(false);enabled.current=open && visible && foreground;
-  const cache=useRef(new Map<string,{journal:Map<string,JournalLaunch>;sdk:Map<string,LaunchRow>;revision:number;initialized:boolean;journalInitialized:boolean}>());
+  const cache=useRef(new Map<string,{journal:Map<string,JournalLaunch>;sdk:Map<string,LaunchRow>;revision:number;initialized:boolean;journalInitialized:boolean;maxSeq?:number}>());
   const sdkRef=useRef(sdk);sdkRef.current=sdk;
   const load=useCallback(async()=>{
     if(!enabled.current || !alive.current)return;
@@ -48,7 +48,8 @@ export function LaunchTree({threadId}:{threadId:string}) {
         }catch(cause){failures.push(`journal unavailable (${cause instanceof Error?cause.message:"RPC error"})`);}
         journal.push(...saved.journal.values());
         try {
-          let timeline=await sdkRef.current.threads.timeline({threadId:current,includeNestedRows:"true",segmentLimit:"100"});
+          let timeline=await sdkRef.current.threads.timeline({threadId:current,includeNestedRows:"true",segmentLimit:"100",...(saved.maxSeq===undefined?{}:{afterSequence:String(saved.maxSeq)})});
+          const newestSeq=timeline.maxSeq;
           const collect=()=>sdkLaunches([...timeline.rows,...timeline.activeBackgroundCommands,...(timeline.timelinePage.olderRowUpdates??[])],current,parent).forEach(row=>saved!.sdk.set(row.id,row));
           collect();const cursors=new Set<string>();
           // Only the first load pages history. Subsequent reads reconcile newest rows/updates with the cache.
@@ -60,6 +61,7 @@ export function LaunchTree({threadId}:{threadId:string}) {
             timeline=await sdkRef.current.threads.timeline({threadId:current,includeNestedRows:"true",segmentLimit:"100",beforeAnchorId:cursor.anchorId,beforeAnchorSeq:String(cursor.anchorSeq)});
             collect();
           }
+          if(typeof newestSeq==="number")saved.maxSeq=newestSeq;
           saved.initialized=true;
         }catch(cause){failures.push(`SDK launches unavailable (${cause instanceof Error?cause.message:"SDK error"})`);}
         sdkRows.push(...saved.sdk.values());
